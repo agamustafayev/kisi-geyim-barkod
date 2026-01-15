@@ -17,6 +17,7 @@ import {
   Users,
   CategoryManagement,
   ColorManagement,
+  SizeManagement,
 } from '@/pages';
 import { useAppStore } from '@/store/appStore';
 
@@ -183,6 +184,9 @@ const App: React.FC = () => {
       case 'colors':
         // Only admin can manage colors
         return isAdmin() ? <ColorManagement /> : <Dashboard />;
+      case 'sizes':
+        // Only admin can manage sizes
+        return isAdmin() ? <SizeManagement /> : <Dashboard />;
       default:
         return <Dashboard />;
     }

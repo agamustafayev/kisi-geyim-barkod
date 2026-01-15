@@ -46,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
     { id: 'reports', label: 'Hesabatlar', icon: PieChart },
     { id: 'categories', label: 'Kateqoriyalar', icon: Tag },
     { id: 'colors', label: 'Rənglər', icon: Palette },
+    { id: 'sizes', label: 'Ölçülər', icon: Tag },
     { id: 'users', label: 'İstifadəçilər', icon: UsersRound },
   ];
 

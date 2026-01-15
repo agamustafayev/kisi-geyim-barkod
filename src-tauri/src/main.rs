@@ -41,6 +41,7 @@ fn main() {
             // Size commands
             commands::size::olcu_elave_et,
             commands::size::olcu_siyahisi,
+            commands::size::olcu_yenile,
             commands::size::olcu_sil,
             // Color commands
             commands::color::reng_elave_et,

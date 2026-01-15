@@ -5,6 +5,9 @@ import { settingsApi, databaseApi } from '@/lib/tauri';
 import { useAppStore } from '@/store/appStore';
 import { open } from '@tauri-apps/api/dialog';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
+import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
+import { getVersion } from '@tauri-apps/api/app';
+import { relaunch } from '@tauri-apps/api/process';
 import {
   Store,
   Phone,
@@ -21,10 +24,22 @@ import {
   AlertTriangle,
   Database,
   Settings as SettingsIcon,
+  RefreshCw,
+  Download,
+  CheckCircle,
+  Info,
 } from 'lucide-react';
 import type { UpdateSettings } from '@/types';
 
-type TabType = 'magaza' | 'proqram' | 'tehluke';
+type TabType = 'magaza' | 'proqram' | 'yenileme' | 'tehluke';
+
+interface UpdateInfo {
+  available: boolean;
+  currentVersion: string;
+  newVersion?: string;
+  releaseNotes?: string;
+  date?: string;
+}
 
 export const SettingsPage: React.FC = () => {
   const { addToast, currentUser } = useAppStore();
@@ -34,6 +49,11 @@ export const SettingsPage: React.FC = () => {
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+
+  // Update states
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   const [formData, setFormData] = useState<UpdateSettings>({
     magaza_adi: '',
@@ -74,7 +94,66 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     loadSettings();
+    loadCurrentVersion();
   }, []);
+
+  const loadCurrentVersion = async () => {
+    try {
+      const version = await getVersion();
+      setUpdateInfo({
+        available: false,
+        currentVersion: version,
+      });
+    } catch (error) {
+      console.error('Error getting version:', error);
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      const { shouldUpdate, manifest } = await checkUpdate();
+      const currentVersion = await getVersion();
+
+      if (shouldUpdate && manifest) {
+        setUpdateInfo({
+          available: true,
+          currentVersion,
+          newVersion: manifest.version,
+          releaseNotes: manifest.body,
+          date: manifest.date,
+        });
+        addToast('info', `Yeni versiya mövcuddur: v${manifest.version}`);
+      } else {
+        setUpdateInfo({
+          available: false,
+          currentVersion,
+        });
+        addToast('success', 'Proqram ən son versiyadadır');
+      }
+    } catch (error: any) {
+      console.error('Update check error:', error);
+      addToast('error', 'Yeniləmə yoxlanarkən xəta baş verdi');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    setInstalling(true);
+    try {
+      addToast('info', 'Yeniləmə yüklənir...');
+      await installUpdate();
+      addToast('success', 'Yeniləmə uğurla yükləndi! Proqram yenidən başladılır...');
+      // Restart the app after update
+      await relaunch();
+    } catch (error: any) {
+      console.error('Install update error:', error);
+      addToast('error', 'Yeniləmə quraşdırılarkən xəta baş verdi');
+    } finally {
+      setInstalling(false);
+    }
+  };
 
   const handleSelectLogo = async () => {
     try {
@@ -194,6 +273,20 @@ export const SettingsPage: React.FC = () => {
           >
             <SettingsIcon className="w-5 h-5" />
             Proqram Parametrləri
+          </button>
+          <button
+            onClick={() => setActiveTab('yenileme')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
+              activeTab === 'yenileme'
+                ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <Download className="w-5 h-5" />
+            Proqram Yeniləmə
+            {updateInfo?.available && (
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            )}
           </button>
           {currentUser?.rol?.toLowerCase() === 'admin' && (
             <button
@@ -571,6 +664,114 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Proqram Yeniləmə Tab */}
+        {activeTab === 'yenileme' && (
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white">
+              <div className="flex items-center gap-3">
+                <Download className="w-6 h-6" />
+                <div>
+                  <h2 className="text-lg font-semibold">Proqram Yeniləmə</h2>
+                  <p className="text-green-100 text-sm">
+                    Proqramın ən son versiyasını yoxlayın və quraşdırın
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Current Version */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+                    <Info className="w-6 h-6 text-primary-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Cari Versiya</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      v{updateInfo?.currentVersion || '...'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={handleCheckUpdate}
+                  disabled={checkingUpdate}
+                  icon={checkingUpdate ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                >
+                  {checkingUpdate ? 'Yoxlanılır...' : 'Yeniləmə Yoxla'}
+                </Button>
+              </div>
+
+              {/* Update Available */}
+              {updateInfo?.available && (
+                <div className="border-2 border-green-200 bg-green-50 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Download className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-green-800">
+                          Yeni Versiya Mövcuddur!
+                        </h3>
+                        <span className="px-2 py-0.5 bg-green-200 text-green-800 text-xs font-medium rounded-full">
+                          v{updateInfo.newVersion}
+                        </span>
+                      </div>
+                      {updateInfo.date && (
+                        <p className="text-sm text-green-600 mb-3">
+                          Buraxılış tarixi: {new Date(updateInfo.date).toLocaleDateString('az-AZ')}
+                        </p>
+                      )}
+                      {updateInfo.releaseNotes && (
+                        <div className="bg-white rounded-lg p-4 mb-4 border border-green-200">
+                          <p className="text-sm font-medium text-gray-700 mb-2">Dəyişikliklər:</p>
+                          <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                            {updateInfo.releaseNotes}
+                          </div>
+                        </div>
+                      )}
+                      <Button
+                        onClick={handleInstallUpdate}
+                        disabled={installing}
+                        icon={installing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {installing ? 'Quraşdırılır...' : 'Yeniləməni Quraşdır'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* No Update Available */}
+              {updateInfo && !updateInfo.available && (
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Proqram Aktual Vəziyyətdədir</p>
+                    <p className="text-sm text-gray-500">
+                      Siz ən son versiyanı istifadə edirsiniz
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-700">
+                  <strong>Qeyd:</strong> Yeniləmə quraşdırıldıqdan sonra proqram avtomatik olaraq yenidən başladılacaq.
+                  Zəhmət olmasa açıq işlərinizi qeyd edin.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Təhlükə Zonası Tab - Admin Only */}

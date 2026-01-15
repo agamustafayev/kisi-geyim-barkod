@@ -84,6 +84,9 @@ export const sizeApi = {
   olcuSiyahisi: (): Promise<Size[]> =>
     invoke('olcu_siyahisi'),
 
+  olcuYenile: (id: number, olcu: string): Promise<Size> =>
+    invoke('olcu_yenile', { id, olcu }),
+
   olcuSil: (id: number): Promise<void> =>
     invoke('olcu_sil', { id }),
 };
