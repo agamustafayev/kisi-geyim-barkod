@@ -47,10 +47,10 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/YOUR_USERNAME/kisi-geyim-barkod/releases/latest/download/latest.json"
+        "https://github.com/agamustafayev/kisi-geyim-barkod/releases/latest/download/latest.json"
       ],
       "dialog": true,
-      "pubkey": "UPDATER_PUBKEY_PLACEHOLDER"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE2QkQ2NjYyNTMxQTE3OTEKUldTUkZ4cFRZbWE5cHBZd0toUEQ5MDRGL1Y0cDZlZ0tpN0lETVZUamJSaFJiS2VDRjdVSUF1M0IK"
     },
     "windows": [
       {
