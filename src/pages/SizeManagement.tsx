@@ -117,10 +117,6 @@ export const SizeManagement: React.FC = () => {
     }
   };
 
-  // Group sizes by type (text vs numeric)
-  const textSizes = sizes.filter(s => isNaN(Number(s.olcu)));
-  const numericSizes = sizes.filter(s => !isNaN(Number(s.olcu))).sort((a, b) => Number(a.olcu) - Number(b.olcu));
-
   const columns = [
     {
       key: 'olcu',
