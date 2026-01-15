@@ -1,0 +1,87 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+
+# Tauri build outputs
+src-tauri/target/
+src-tauri/WixTools/
+src-tauri/Wix*/
+
+# Database files (user data - should not be in repo)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# IDE and Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Test coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache
+.npm/
+
+# Optional eslint cache
+.eslintcache
+
+# Temp files
+*.tmp
+*.temp
+.temp/
+.tmp/
+
+# Tauri specific
+src-tauri/binaries/
+!src-tauri/binaries/.gitkeep
+
+# Rust specific
+**/*.rs.bk
+Cargo.lock

@@ -1,0 +1,13 @@
+pub mod product;
+pub mod category;
+pub mod size;
+pub mod color;
+pub mod stock;
+pub mod sale;
+pub mod report;
+pub mod customer;
+pub mod payment;
+pub mod returns;
+pub mod settings;
+pub mod user;
+pub mod database;
