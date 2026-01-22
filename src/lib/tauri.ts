@@ -21,6 +21,8 @@ import type {
   LowStockAlert,
   SaleListItem,
   ProfitReport,
+  ProductStatisticsReport,
+  ProductMovementDetail,
   Customer,
   CreateCustomer,
   UpdateCustomer,
@@ -164,6 +166,12 @@ export const reportApi = {
 
   stokDeyeriHesabati: (): Promise<StockValueReport> =>
     invoke('stok_deyeri_hesabati'),
+
+  mehsulStatistikasi: (baslangicTarix?: string, bitisTarix?: string, kateqoriyaId?: number): Promise<ProductStatisticsReport> =>
+    invoke('mehsul_statistikasi', { baslangicTarix, bitisTarix, kateqoriyaId }),
+
+  mehsulHereketleri: (mehsulId: number, baslangicTarix?: string, bitisTarix?: string): Promise<ProductMovementDetail[]> =>
+    invoke('mehsul_hereketleri', { mehsulId, baslangicTarix, bitisTarix }),
 };
 
 // Payment API

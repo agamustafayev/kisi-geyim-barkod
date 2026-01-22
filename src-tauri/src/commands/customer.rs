@@ -39,8 +39,9 @@ pub async fn musteri_elave_et(
                 soyad: row.get(2)?,
                 telefon: row.get(3)?,
                 qeyd: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                baslangic_borcu: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             })
         })
         .map_err(|e| format!("Müştəri tapılmadı: {}", e))?;
@@ -65,8 +66,9 @@ pub async fn musteri_siyahisi(state: State<'_, AppState>) -> Result<Vec<Customer
                 soyad: row.get(2)?,
                 telefon: row.get(3)?,
                 qeyd: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                baslangic_borcu: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -103,8 +105,9 @@ pub async fn musteri_axtar(
                 soyad: row.get(2)?,
                 telefon: row.get(3)?,
                 qeyd: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                baslangic_borcu: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -152,8 +155,9 @@ pub async fn musteri_yenile(
                 soyad: row.get(2)?,
                 telefon: row.get(3)?,
                 qeyd: row.get(4)?,
-                created_at: row.get(5)?,
-                updated_at: row.get(6)?,
+                baslangic_borcu: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
             })
         })
         .map_err(|e| format!("Müştəri tapılmadı: {}", e))?;

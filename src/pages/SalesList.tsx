@@ -102,10 +102,11 @@ export const SalesList: React.FC = () => {
     olcu: string;
     miqdar: number;
     vahid_qiymeti: number;
+    maxMiqdar: number;
   }) => {
     setReturnItem({
       ...item,
-      maxMiqdar: item.miqdar,
+      maxMiqdar: item.maxMiqdar,
     });
     setReturnQuantity(1);
     setReturnReason('');
@@ -223,6 +224,26 @@ export const SalesList: React.FC = () => {
           {sale.odenis_usulu}
         </span>
       ),
+    },
+    {
+      key: 'iade_durumu',
+      header: 'İadə Statusu',
+      sortable: true,
+      render: (sale: SaleListItem) => {
+        const status = sale.iade_durumu || 'Yoxdur';
+        const statusConfig = {
+          'Yoxdur': { bg: 'bg-green-100', text: 'text-green-700', label: 'Yoxdur' },
+          'Qismən': { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Qismən' },
+          'Tam': { bg: 'bg-red-100', text: 'text-red-700', label: 'Tam İadə' },
+        };
+        const config = statusConfig[status as keyof typeof statusConfig] || statusConfig['Yoxdur'];
+        
+        return (
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+            {config.label}
+          </span>
+        );
+      },
     },
     {
       key: 'actions',
@@ -429,41 +450,59 @@ export const SalesList: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {selectedSale.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <div>
-                            <p className="font-medium text-gray-900">{item.mehsul_adi}</p>
-                            <p className="text-xs text-gray-500 font-mono">{item.mehsul_barkod}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">{item.olcu}</td>
-                        <td className="px-4 py-3 text-right text-gray-600">
-                          {formatCurrency(item.vahid_qiymeti)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-600">{item.miqdar}</td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-900">
-                          {formatCurrency(item.toplam_qiymet)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            icon={<RotateCcw className="w-3 h-3" />}
-                            onClick={() => openReturnModal({
-                              mehsul_id: item.mehsul_id,
-                              olcu_id: item.olcu_id,
-                              mehsul_adi: item.mehsul_adi || '',
-                              olcu: item.olcu || '',
-                              miqdar: item.miqdar,
-                              vahid_qiymeti: item.vahid_qiymeti,
-                            })}
-                          >
-                            Geri Qaytar
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {selectedSale.items.map((item, idx) => {
+                      const hasReturn = item.iade_miqdar && item.iade_miqdar > 0;
+                      return (
+                        <tr key={idx} className={`hover:bg-gray-50 ${hasReturn ? 'bg-red-50' : ''}`}>
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="font-medium text-gray-900">{item.mehsul_adi}</p>
+                              <p className="text-xs text-gray-500 font-mono">{item.mehsul_barkod}</p>
+                              {hasReturn && (
+                                <p className="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
+                                  <RotateCcw className="w-3 h-3" />
+                                  İadə edildi: {item.iade_miqdar} ədəd
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{item.olcu}</td>
+                          <td className="px-4 py-3 text-right text-gray-600">
+                            {formatCurrency(item.vahid_qiymeti)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-gray-600">
+                            {item.miqdar}
+                            {hasReturn && (
+                              <span className="text-xs text-red-600 block">
+                                (Net: {item.miqdar - item.iade_miqdar})
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-gray-900">
+                            {formatCurrency(item.toplam_qiymet)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              icon={<RotateCcw className="w-3 h-3" />}
+                              onClick={() => openReturnModal({
+                                mehsul_id: item.mehsul_id,
+                                olcu_id: item.olcu_id,
+                                mehsul_adi: item.mehsul_adi || '',
+                                olcu: item.olcu || '',
+                                miqdar: item.miqdar,
+                                vahid_qiymeti: item.vahid_qiymeti,
+                                maxMiqdar: item.miqdar - (item.iade_miqdar || 0),
+                              })}
+                              disabled={hasReturn ? (item.miqdar - item.iade_miqdar <= 0) : false}
+                            >
+                              {hasReturn && item.miqdar - item.iade_miqdar <= 0 ? 'İadə edildi' : 'Geri Qaytar'}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

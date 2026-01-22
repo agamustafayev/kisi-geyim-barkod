@@ -4,11 +4,7 @@ import { Table } from '@/components/ui';
 import { reportApi, paymentApi, returnApi } from '@/lib/tauri';
 import { formatCurrency } from '@/lib/utils';
 import {
-  TrendingUp,
-  TrendingDown,
   Calendar,
-  DollarSign,
-  Percent,
   RefreshCw,
   BarChart3,
   PieChart,
@@ -143,44 +139,34 @@ export const Reports: React.FC = () => {
   const StatCard = ({
     title,
     value,
-    icon,
-    color,
     trend,
     subtitle,
   }: {
     title: string;
     value: string;
-    icon: React.ReactNode;
-    color: string;
     trend?: 'up' | 'down';
     subtitle?: string;
   }) => (
     <div className="bg-white rounded-xl border border-gray-200 p-3 xl:p-4 2xl:p-6">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs xl:text-sm text-gray-500 font-medium truncate">{title}</p>
-          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-gray-900 mt-1 truncate">{value}</p>
+      <div className="flex items-center justify-center">
+        <div className="text-center w-full">
+          <p className="text-xs text-gray-500 font-medium mb-2">{title}</p>
+          <p className="text-base xl:text-lg font-bold text-gray-900">{value}</p>
           {subtitle && (
-            <p className="text-[10px] xl:text-xs text-gray-400 mt-1 truncate">{subtitle}</p>
+            <p className="text-[10px] text-gray-400 mt-1">{subtitle}</p>
           )}
-        </div>
-        <div className={`w-8 h-8 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12 rounded-lg xl:rounded-xl flex-shrink-0 flex items-center justify-center ${color}`}>
-          {React.cloneElement(icon as React.ReactElement, { 
-            className: 'w-4 h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6 text-white' 
-          })}
         </div>
       </div>
       {trend && (
-        <div className="flex items-center gap-1 mt-2 xl:mt-3">
+        <div className="flex items-center justify-center gap-1 mt-2">
           {trend === 'up' ? (
-            <ArrowUpRight className="w-3 h-3 xl:w-4 xl:h-4 text-green-500" />
+            <ArrowUpRight className="w-3 h-3 text-green-500" />
           ) : (
-            <ArrowDownRight className="w-3 h-3 xl:w-4 xl:h-4 text-red-500" />
+            <ArrowDownRight className="w-3 h-3 text-red-500" />
           )}
-          <span className={`text-xs xl:text-sm font-medium ${trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+          <span className={`text-xs font-medium ${trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
             {profitMargin.toFixed(1)}%
           </span>
-          <span className="text-xs xl:text-sm text-gray-400 hidden xl:inline">mənfəət marjası</span>
         </div>
       )}
     </div>
@@ -251,36 +237,26 @@ export const Reports: React.FC = () => {
           <StatCard
             title="Ümumi Alış"
             value={formatCurrency(profitReport?.toplam_alis || 0)}
-            icon={<TrendingDown />}
-            color="bg-gradient-to-br from-red-500 to-red-600"
             subtitle="Maya dəyəri"
           />
           <StatCard
             title="Ümumi Satış"
             value={formatCurrency(profitReport?.toplam_satis || 0)}
-            icon={<TrendingUp />}
-            color="bg-gradient-to-br from-blue-500 to-blue-600"
             subtitle="Satış gəliri"
           />
           <StatCard
             title="Xam Qazanc"
             value={formatCurrency(profitReport?.toplam_qazanc || 0)}
-            icon={<BarChart3 />}
-            color="bg-gradient-to-br from-green-500 to-green-600"
             trend="up"
           />
           <StatCard
             title="Endirim"
             value={formatCurrency(profitReport?.toplam_endirim || 0)}
-            icon={<Percent />}
-            color="bg-gradient-to-br from-orange-500 to-orange-600"
             subtitle="Tətbiq edilən"
           />
           <StatCard
             title="Net Qazanc"
             value={formatCurrency(profitReport?.net_qazanc || 0)}
-            icon={<DollarSign />}
-            color="bg-gradient-to-br from-purple-500 to-purple-600"
             subtitle="Xam qazanc - Endirim"
           />
         </div>

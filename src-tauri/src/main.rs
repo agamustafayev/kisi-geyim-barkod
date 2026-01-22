@@ -65,6 +65,8 @@ fn main() {
             commands::report::satis_siyahisi_tarixe_gore,
             commands::report::qazanc_hesabati,
             commands::report::stok_deyeri_hesabati,
+            commands::report::mehsul_statistikasi,
+            commands::report::mehsul_hereketleri,
             // Customer commands
             commands::customer::musteri_elave_et,
             commands::customer::musteri_siyahisi,

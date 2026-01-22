@@ -275,6 +275,40 @@ impl Database {
             )?;
         }
 
+        // Migration 15: Add vahid_alis_qiymeti column to stock_movements table
+        let has_vahid_alis_qiymeti: bool = self.conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('stock_movements') WHERE name='vahid_alis_qiymeti'",
+            [],
+            |row| {
+                let count: i32 = row.get(0)?;
+                Ok(count > 0)
+            },
+        ).unwrap_or(false);
+
+        if !has_vahid_alis_qiymeti {
+            self.conn.execute(
+                "ALTER TABLE stock_movements ADD COLUMN vahid_alis_qiymeti REAL",
+                [],
+            )?;
+        }
+
+        // Migration 16: Add toplam_deyeri column to stock_movements table
+        let has_toplam_deyeri: bool = self.conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('stock_movements') WHERE name='toplam_deyeri'",
+            [],
+            |row| {
+                let count: i32 = row.get(0)?;
+                Ok(count > 0)
+            },
+        ).unwrap_or(false);
+
+        if !has_toplam_deyeri {
+            self.conn.execute(
+                "ALTER TABLE stock_movements ADD COLUMN toplam_deyeri REAL",
+                [],
+            )?;
+        }
+
         Ok(())
     }
     

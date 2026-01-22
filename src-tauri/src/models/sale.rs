@@ -44,6 +44,7 @@ pub struct SaleItem {
     pub vahid_qiymeti: f64,
     pub toplam_qiymet: f64,
     pub created_at: Option<String>,
+    pub iade_miqdar: i32,  // Qaytarılmış miqdar
 }
 
 #[derive(Debug, Serialize, Deserialize)]

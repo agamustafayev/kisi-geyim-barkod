@@ -19,6 +19,7 @@ import {
   UsersRound,
   Tag,
   Palette,
+  BarChart2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -43,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
 
   // Admin-only menu items
   const adminMenuItems = [
+    { id: 'productstatistics', label: 'Məhsul Statistikası', icon: BarChart2 },
     { id: 'reports', label: 'Hesabatlar', icon: PieChart },
     { id: 'categories', label: 'Kateqoriyalar', icon: Tag },
     { id: 'colors', label: 'Rənglər', icon: Palette },

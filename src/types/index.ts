@@ -80,6 +80,8 @@ export interface Stock {
   mehsul_id: number;
   mehsul_adi: string | null;
   mehsul_barkod: string | null;
+  kateqoriya_id: number | null;
+  kateqoriya_adi: string | null;
   olcu_id: number;
   olcu: string | null;
   miqdar: number;
@@ -123,6 +125,7 @@ export interface Customer {
   soyad: string;
   telefon: string;
   qeyd: string | null;
+  baslangic_borcu: number;
   created_at: string;
   updated_at: string;
 }
@@ -193,6 +196,7 @@ export interface SaleItem {
   vahid_qiymeti: number;
   toplam_qiymet: number;
   created_at: string | null;
+  iade_miqdar: number;  // Qaytarılmış miqdar
 }
 
 // SaleWithItems - serde flatten olduğu üçün Sale fieldləri birbaşa root-dadır
@@ -235,6 +239,7 @@ export interface SaleListItem {
   qeyd: string | null;
   created_at: string;
   mehsul_sayi: number;
+  iade_durumu: string;  // "Yoxdur", "Qismən", "Tam"
 }
 
 export interface ProfitReportItem {
@@ -259,6 +264,44 @@ export interface ProfitReport {
   toplam_qazanc: number;
   toplam_endirim: number;
   net_qazanc: number;
+}
+
+// Product Statistics Types
+export interface ProductStatistics {
+  mehsul_id: number;
+  mehsul_adi: string;
+  barkod: string;
+  kateqoriya_id: number | null;
+  kateqoriya_adi: string | null;
+  toplam_alis_miqdar: number;
+  toplam_satis_miqdar: number;
+  toplam_alis_deyeri: number;
+  toplam_satis_deyeri: number;
+  ortalama_qazanc_vahid: number;
+  toplam_qazanc: number;
+  hazirki_stok: number;
+}
+
+export interface ProductStatisticsReport {
+  baslangic_tarix: string;
+  bitis_tarix: string;
+  items: ProductStatistics[];
+  umumi_alis_miqdar: number;
+  umumi_satis_miqdar: number;
+  umumi_alis_deyeri: number;
+  umumi_satis_deyeri: number;
+  umumi_qazanc: number;
+  ortalama_qazanc_faizi: number;
+}
+
+export interface ProductMovementDetail {
+  id: number;
+  tarix: string;
+  novu: string;
+  miqdar: number;
+  vahid_qiymet: number | null;
+  toplam_deyeri: number | null;
+  qeyd: string | null;
 }
 
 // Cart Types (Frontend only)

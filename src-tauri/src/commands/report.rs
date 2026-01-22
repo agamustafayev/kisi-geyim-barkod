@@ -1,4 +1,4 @@
-use crate::models::LowStockAlert;
+use crate::models::{LowStockAlert, ProductStatistics, ProductStatisticsReport, ProductMovementDetail};
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -84,6 +84,7 @@ pub struct SaleListItem {
     pub qeyd: Option<String>,
     pub created_at: String,
     pub mehsul_sayi: i32,
+    pub iade_durumu: String,  // "Yoxdur", "Qismən", "Tam"
 }
 
 #[tauri::command]
@@ -214,27 +215,34 @@ pub async fn satis_siyahisi_tarixe_gore(
     bitisTarix: Option<String>,
 ) -> Result<Vec<SaleListItem>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
-    
+
     let mut query = String::from(
-        "SELECT s.id, s.satis_nomresi, s.toplam_mebleg, s.endirim, s.son_mebleg, 
+        "SELECT s.id, s.satis_nomresi, s.toplam_mebleg, s.endirim, s.son_mebleg,
                 s.odenis_usulu, s.qeyd, s.created_at,
-                (SELECT COUNT(*) FROM sale_items WHERE satis_id = s.id) as mehsul_sayi
+                (SELECT COUNT(*) FROM sale_items WHERE satis_id = s.id) as mehsul_sayi,
+                CASE
+                    WHEN (SELECT COUNT(*) FROM returns WHERE satis_id = s.id) = 0 THEN 'Yoxdur'
+                    WHEN COALESCE((SELECT SUM(ri.miqdar) FROM return_items ri
+                          JOIN returns r ON ri.iade_id = r.id WHERE r.satis_id = s.id), 0)
+                          >= (SELECT SUM(miqdar) FROM sale_items WHERE satis_id = s.id) THEN 'Tam'
+                    ELSE 'Qismən'
+                END as iade_durumu
          FROM sales s
          WHERE 1=1"
     );
-    
+
     if let Some(ref start) = baslangicTarix {
         query.push_str(&format!(" AND date(s.created_at) >= '{}'", start));
     }
-    
+
     if let Some(ref end) = bitisTarix {
         query.push_str(&format!(" AND date(s.created_at) <= '{}'", end));
     }
-    
+
     query.push_str(" ORDER BY s.created_at DESC");
-    
+
     let mut stmt = db.conn.prepare(&query).map_err(|e| e.to_string())?;
-    
+
     let sales = stmt
         .query_map([], |row| {
             Ok(SaleListItem {
@@ -247,12 +255,13 @@ pub async fn satis_siyahisi_tarixe_gore(
                 qeyd: row.get(6)?,
                 created_at: row.get(7)?,
                 mehsul_sayi: row.get(8)?,
+                iade_durumu: row.get(9)?,
             })
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
-    
+
     Ok(sales)
 }
 
@@ -273,27 +282,47 @@ pub async fn qazanc_hesabati(
         chrono::Local::now().format("%Y-%m-%d").to_string()
     });
     
-    // Get profit details per product sold
+    // Get profit details per product sold - subtract returns
     let query = format!(
-        "SELECT 
-            p.id as mehsul_id,
-            p.ad as mehsul_adi,
-            p.barkod,
-            sz.olcu,
-            SUM(si.miqdar) as miqdar,
-            p.alis_qiymeti,
-            si.vahid_qiymeti as satis_qiymeti,
-            SUM(si.miqdar * p.alis_qiymeti) as toplam_alis,
-            SUM(si.toplam_qiymet) as toplam_satis,
-            SUM(si.toplam_qiymet) - SUM(si.miqdar * p.alis_qiymeti) as qazanc
-         FROM sale_items si
-         JOIN sales s ON si.satis_id = s.id
-         JOIN products p ON si.mehsul_id = p.id
-         JOIN sizes sz ON si.olcu_id = sz.id
-         WHERE date(s.created_at) >= '{}' AND date(s.created_at) <= '{}'
-         GROUP BY p.id, sz.olcu
+        "WITH satislar AS (
+            SELECT p.id, p.ad, p.barkod, sz.olcu, sz.id as olcu_id,
+                   SUM(si.miqdar) as miqdar,
+                   p.alis_qiymeti, si.vahid_qiymeti,
+                   SUM(si.miqdar * p.alis_qiymeti) as toplam_alis,
+                   SUM(si.toplam_qiymet) as toplam_satis
+            FROM sale_items si
+            JOIN sales s ON si.satis_id = s.id
+            JOIN products p ON si.mehsul_id = p.id
+            JOIN sizes sz ON si.olcu_id = sz.id
+            WHERE date(s.created_at) >= '{}' AND date(s.created_at) <= '{}'
+            GROUP BY p.id, sz.id
+         ),
+         iadeler AS (
+            SELECT ri.mehsul_id, ri.olcu_id,
+                   SUM(ri.miqdar) as miqdar,
+                   SUM(ri.miqdar * p.alis_qiymeti) as toplam_alis,
+                   SUM(ri.toplam_qiymet) as toplam_satis
+            FROM return_items ri
+            JOIN returns r ON ri.iade_id = r.id
+            JOIN products p ON ri.mehsul_id = p.id
+            WHERE date(r.created_at) >= '{}' AND date(r.created_at) <= '{}'
+            GROUP BY ri.mehsul_id, ri.olcu_id
+         )
+         SELECT s.id as mehsul_id,
+                s.ad as mehsul_adi,
+                s.barkod,
+                s.olcu,
+                s.miqdar - COALESCE(i.miqdar, 0) as miqdar,
+                s.alis_qiymeti,
+                s.vahid_qiymeti as satis_qiymeti,
+                s.toplam_alis - COALESCE(i.toplam_alis, 0) as toplam_alis,
+                s.toplam_satis - COALESCE(i.toplam_satis, 0) as toplam_satis,
+                (s.toplam_satis - COALESCE(i.toplam_satis, 0)) - (s.toplam_alis - COALESCE(i.toplam_alis, 0)) as qazanc
+         FROM satislar s
+         LEFT JOIN iadeler i ON s.id = i.mehsul_id AND s.olcu_id = i.olcu_id
+         WHERE s.miqdar - COALESCE(i.miqdar, 0) > 0
          ORDER BY qazanc DESC",
-        start_date, end_date
+        start_date, end_date, start_date, end_date
     );
     
     let mut stmt = db.conn.prepare(&query).map_err(|e| e.to_string())?;
@@ -384,4 +413,191 @@ pub async fn stok_deyeri_hesabati(state: State<'_, AppState>) -> Result<StockVal
             potensial_qazanc: 0.0,
         }),
     }
+}
+
+#[tauri::command]
+pub async fn mehsul_statistikasi(
+    state: State<'_, AppState>,
+    baslangicTarix: Option<String>,
+    bitisTarix: Option<String>,
+    kateqoriyaId: Option<i64>,
+) -> Result<ProductStatisticsReport, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let start_date = baslangicTarix.unwrap_or_else(|| {
+        chrono::Local::now().format("%Y-%m-01").to_string()
+    });
+
+    let end_date = bitisTarix.unwrap_or_else(|| {
+        chrono::Local::now().format("%Y-%m-%d").to_string()
+    });
+
+    // Category filter
+    let category_filter = match kateqoriyaId {
+        Some(id) => format!("AND p.kateqoriya_id = {}", id),
+        None => String::new(),
+    };
+
+    // Complex query to get product statistics
+    let query = format!(
+        "WITH alislar AS (
+            SELECT
+                sm.mehsul_id,
+                SUM(sm.miqdar) as alis_miqdar,
+                SUM(COALESCE(sm.toplam_deyeri, sm.miqdar * p.alis_qiymeti)) as alis_deyeri
+            FROM stock_movements sm
+            JOIN products p ON sm.mehsul_id = p.id
+            WHERE sm.novu = 'Daxil olma'
+              AND date(sm.created_at) >= '{0}'
+              AND date(sm.created_at) <= '{1}'
+              {2}
+            GROUP BY sm.mehsul_id
+        ),
+        satislar AS (
+            SELECT
+                si.mehsul_id,
+                SUM(si.miqdar) as satis_miqdar,
+                SUM(si.toplam_qiymet) as satis_deyeri,
+                SUM(si.miqdar * p.alis_qiymeti) as satis_maya_deyeri
+            FROM sale_items si
+            JOIN sales s ON si.satis_id = s.id
+            JOIN products p ON si.mehsul_id = p.id
+            WHERE date(s.created_at) >= '{0}'
+              AND date(s.created_at) <= '{1}'
+              {2}
+            GROUP BY si.mehsul_id
+        ),
+        hazirki_stok AS (
+            SELECT mehsul_id, SUM(miqdar) as stok
+            FROM stock
+            GROUP BY mehsul_id
+        )
+        SELECT
+            p.id as mehsul_id,
+            p.ad as mehsul_adi,
+            p.barkod,
+            p.kateqoriya_id,
+            c.ad as kateqoriya_adi,
+            COALESCE(a.alis_miqdar, 0) as toplam_alis_miqdar,
+            COALESCE(s.satis_miqdar, 0) as toplam_satis_miqdar,
+            COALESCE(a.alis_deyeri, 0) as toplam_alis_deyeri,
+            COALESCE(s.satis_deyeri, 0) as toplam_satis_deyeri,
+            CASE
+                WHEN COALESCE(s.satis_miqdar, 0) > 0
+                THEN (COALESCE(s.satis_deyeri, 0) - COALESCE(s.satis_maya_deyeri, 0)) / s.satis_miqdar
+                ELSE 0
+            END as ortalama_qazanc_vahid,
+            COALESCE(s.satis_deyeri, 0) - COALESCE(s.satis_maya_deyeri, 0) as toplam_qazanc,
+            COALESCE(hs.stok, 0) as hazirki_stok
+        FROM products p
+        LEFT JOIN categories c ON p.kateqoriya_id = c.id
+        LEFT JOIN alislar a ON p.id = a.mehsul_id
+        LEFT JOIN satislar s ON p.id = s.mehsul_id
+        LEFT JOIN hazirki_stok hs ON p.id = hs.mehsul_id
+        WHERE (COALESCE(a.alis_miqdar, 0) > 0 OR COALESCE(s.satis_miqdar, 0) > 0)
+        {2}
+        ORDER BY toplam_qazanc DESC",
+        start_date, end_date, category_filter
+    );
+
+    let mut stmt = db.conn.prepare(&query).map_err(|e| e.to_string())?;
+
+    let items: Vec<ProductStatistics> = stmt
+        .query_map([], |row| {
+            Ok(ProductStatistics {
+                mehsul_id: row.get(0)?,
+                mehsul_adi: row.get(1)?,
+                barkod: row.get(2)?,
+                kateqoriya_id: row.get(3)?,
+                kateqoriya_adi: row.get(4)?,
+                toplam_alis_miqdar: row.get(5)?,
+                toplam_satis_miqdar: row.get(6)?,
+                toplam_alis_deyeri: row.get(7)?,
+                toplam_satis_deyeri: row.get(8)?,
+                ortalama_qazanc_vahid: row.get(9)?,
+                toplam_qazanc: row.get(10)?,
+                hazirki_stok: row.get(11)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    // Calculate totals
+    let umumi_alis_miqdar: i32 = items.iter().map(|i| i.toplam_alis_miqdar).sum();
+    let umumi_satis_miqdar: i32 = items.iter().map(|i| i.toplam_satis_miqdar).sum();
+    let umumi_alis_deyeri: f64 = items.iter().map(|i| i.toplam_alis_deyeri).sum();
+    let umumi_satis_deyeri: f64 = items.iter().map(|i| i.toplam_satis_deyeri).sum();
+    let umumi_qazanc: f64 = items.iter().map(|i| i.toplam_qazanc).sum();
+
+    let ortalama_qazanc_faizi = if umumi_alis_deyeri > 0.0 {
+        (umumi_qazanc / umumi_alis_deyeri) * 100.0
+    } else {
+        0.0
+    };
+
+    Ok(ProductStatisticsReport {
+        baslangic_tarix: start_date,
+        bitis_tarix: end_date,
+        items,
+        umumi_alis_miqdar,
+        umumi_satis_miqdar,
+        umumi_alis_deyeri,
+        umumi_satis_deyeri,
+        umumi_qazanc,
+        ortalama_qazanc_faizi,
+    })
+}
+
+#[tauri::command]
+pub async fn mehsul_hereketleri(
+    state: State<'_, AppState>,
+    mehsulId: i64,
+    baslangicTarix: Option<String>,
+    bitisTarix: Option<String>,
+) -> Result<Vec<ProductMovementDetail>, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+
+    let mut query = String::from(
+        "SELECT
+            sm.id,
+            sm.created_at as tarix,
+            sm.novu,
+            sm.miqdar,
+            sm.vahid_alis_qiymeti as vahid_qiymet,
+            sm.toplam_deyeri,
+            sm.qeyd
+         FROM stock_movements sm
+         WHERE sm.mehsul_id = ?"
+    );
+
+    if let Some(ref start) = baslangicTarix {
+        query.push_str(&format!(" AND date(sm.created_at) >= '{}'", start));
+    }
+
+    if let Some(ref end) = bitisTarix {
+        query.push_str(&format!(" AND date(sm.created_at) <= '{}'", end));
+    }
+
+    query.push_str(" ORDER BY sm.created_at DESC");
+
+    let mut stmt = db.conn.prepare(&query).map_err(|e| e.to_string())?;
+
+    let movements: Vec<ProductMovementDetail> = stmt
+        .query_map([mehsulId], |row| {
+            Ok(ProductMovementDetail {
+                id: row.get(0)?,
+                tarix: row.get(1)?,
+                novu: row.get(2)?,
+                miqdar: row.get(3)?,
+                vahid_qiymet: row.get(4)?,
+                toplam_deyeri: row.get(5)?,
+                qeyd: row.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    Ok(movements)
 }

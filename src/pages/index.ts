@@ -13,3 +13,4 @@ export { Users } from './Users';
 export { CategoryManagement } from './CategoryManagement';
 export { ColorManagement } from './ColorManagement';
 export { SizeManagement } from './SizeManagement';
+export { ProductStatistics } from './ProductStatistics';

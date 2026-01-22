@@ -196,17 +196,22 @@ pub async fn satis_detallari(
         )
         .map_err(|e| format!("Satış tapılmadı: {}", e))?;
     
-    // Get sale items
+    // Get sale items with return info
     let mut stmt = db.conn
         .prepare(
-            "SELECT si.*, p.ad as mehsul_adi, p.barkod as mehsul_barkod, sz.olcu
+            "SELECT si.*, p.ad as mehsul_adi, p.barkod as mehsul_barkod, sz.olcu,
+                    COALESCE((SELECT SUM(ri.miqdar) FROM return_items ri
+                              JOIN returns r ON ri.iade_id = r.id
+                              WHERE r.satis_id = si.satis_id
+                                AND ri.mehsul_id = si.mehsul_id
+                                AND ri.olcu_id = si.olcu_id), 0) as iade_miqdar
              FROM sale_items si
              JOIN products p ON si.mehsul_id = p.id
              JOIN sizes sz ON si.olcu_id = sz.id
              WHERE si.satis_id = ?1",
         )
         .map_err(|e| e.to_string())?;
-    
+
     let items = stmt
         .query_map([satis_id], |row| {
             Ok(SaleItem {
@@ -221,6 +226,7 @@ pub async fn satis_detallari(
                 mehsul_adi: row.get(8)?,
                 mehsul_barkod: row.get(9)?,
                 olcu: row.get(10)?,
+                iade_miqdar: row.get(11)?,
             })
         })
         .map_err(|e| e.to_string())?

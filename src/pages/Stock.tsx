@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/layout';
 import { Button, Input, Select, Modal, Table } from '@/components/ui';
-import { stockApi } from '@/lib/tauri';
+import { stockApi, categoryApi } from '@/lib/tauri';
 import { useProducts } from '@/hooks';
 import { useAppStore } from '@/store/appStore';
 import { sortSizes } from '@/lib/utils';
@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react';
-import type { Stock, CreateStock } from '@/types';
+import type { Stock, CreateStock, Category } from '@/types';
 
 export const StockPage: React.FC = () => {
   const { products, sizes, loadData: loadProducts } = useProducts();
@@ -22,7 +22,9 @@ export const StockPage: React.FC = () => {
 
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [filteredStocks, setFilteredStocks] = useState<Stock[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
   const [showLowStock, setShowLowStock] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -48,9 +50,19 @@ export const StockPage: React.FC = () => {
     }
   };
 
+  const loadCategories = async () => {
+    try {
+      const data = await categoryApi.kateqoriyaSiyahisi();
+      setCategories(data);
+    } catch (error) {
+      console.error('Kategoriler yüklenemedi:', error);
+    }
+  };
+
   useEffect(() => {
     loadStocks();
     loadProducts();
+    loadCategories();
   }, []);
 
   // Filter stocks
@@ -65,12 +77,16 @@ export const StockPage: React.FC = () => {
       );
     }
 
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter((s) => s.kateqoriya_id === selectedCategory);
+    }
+
     if (showLowStock) {
       filtered = filtered.filter((s) => s.miqdar <= s.minimum_miqdar);
     }
 
     setFilteredStocks(filtered);
-  }, [stocks, searchQuery, showLowStock]);
+  }, [stocks, searchQuery, selectedCategory, showLowStock]);
 
   const handleAddStock = async () => {
     if (!selectedProduct || !selectedSize) {
@@ -156,11 +172,10 @@ export const StockPage: React.FC = () => {
         return (
           <div className="flex items-center gap-2">
             <span
-              className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                isLow
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-green-100 text-green-700'
-              }`}
+              className={`px-3 py-1 rounded-full text-sm font-semibold ${isLow
+                ? 'bg-red-100 text-red-700'
+                : 'bg-green-100 text-green-700'
+                }`}
             >
               {stock.miqdar}
             </span>
@@ -235,7 +250,7 @@ export const StockPage: React.FC = () => {
 
   const handleDelete = async () => {
     if (!deleteConfirm) return;
-    
+
     try {
       await stockApi.stokSil(deleteConfirm.mehsul_id, deleteConfirm.olcu_id);
       addToast('success', 'Stok uğurla silindi!');
@@ -246,7 +261,18 @@ export const StockPage: React.FC = () => {
     }
   };
 
-  const lowStockCount = stocks.filter((s) => s.miqdar <= s.minimum_miqdar).length;
+  // Calculate stats based on current search and category (before low stock filter)
+  const filteredForStats = stocks.filter((s) => {
+    const matchesSearch = !searchQuery ||
+      s.mehsul_adi?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.mehsul_barkod?.includes(searchQuery);
+    const matchesCategory = selectedCategory === 'all' || s.kateqoriya_id === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const totalQuantity = filteredForStats.reduce((sum, s) => sum + s.miqdar, 0);
+  const stockTypesCount = filteredForStats.length;
+  const lowStockCountForView = filteredForStats.filter((s) => s.miqdar <= s.minimum_miqdar).length;
 
   return (
     <div className="min-h-screen">
@@ -263,7 +289,7 @@ export const StockPage: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-500">Ümumi Stok</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {stocks.reduce((sum, s) => sum + s.miqdar, 0)}
+                  {totalQuantity}
                 </p>
               </div>
             </div>
@@ -276,7 +302,7 @@ export const StockPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Stok Növləri</p>
-                <p className="text-2xl font-bold text-gray-900">{stocks.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{stockTypesCount}</p>
               </div>
             </div>
           </div>
@@ -288,7 +314,7 @@ export const StockPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Aşağı Stok</p>
-                <p className="text-2xl font-bold text-red-600">{lowStockCount}</p>
+                <p className="text-2xl font-bold text-red-600">{lowStockCountForView}</p>
               </div>
             </div>
           </div>
@@ -305,12 +331,25 @@ export const StockPage: React.FC = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <div className="w-48">
+              <Select
+                options={[
+                  { value: 'all', label: 'Bütün Kateqoriyalar' },
+                  ...categories.map((c) => ({ value: c.id, label: c.ad })),
+                ]}
+                value={selectedCategory}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedCategory(val === 'all' ? 'all' : Number(val));
+                }}
+              />
+            </div>
             <Button
               variant={showLowStock ? 'danger' : 'secondary'}
               icon={<AlertTriangle className="w-4 h-4" />}
               onClick={() => setShowLowStock(!showLowStock)}
             >
-              Aşağı Stok ({lowStockCount})
+              Aşağı Stok ({lowStockCountForView})
             </Button>
             <Button
               variant="secondary"
@@ -320,15 +359,6 @@ export const StockPage: React.FC = () => {
               Yenilə
             </Button>
           </div>
-          <Button
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => {
-              resetForm();
-              setIsAddModalOpen(true);
-            }}
-          >
-            Stok Əlavə Et
-          </Button>
         </div>
 
         {/* Stock Table */}

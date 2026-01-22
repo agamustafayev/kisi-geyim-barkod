@@ -7,6 +7,7 @@ pub struct Customer {
     pub soyad: String,
     pub telefon: String,
     pub qeyd: Option<String>,
+    pub baslangic_borcu: f64,
     pub created_at: String,
     pub updated_at: String,
 }

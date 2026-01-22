@@ -18,6 +18,7 @@ import {
   CategoryManagement,
   ColorManagement,
   SizeManagement,
+  ProductStatistics,
 } from '@/pages';
 import { useAppStore } from '@/store/appStore';
 
@@ -187,6 +188,9 @@ const App: React.FC = () => {
       case 'sizes':
         // Only admin can manage sizes
         return isAdmin() ? <SizeManagement /> : <Dashboard />;
+      case 'productstatistics':
+        // Only admin can see product statistics
+        return isAdmin() ? <ProductStatistics /> : <Dashboard />;
       default:
         return <Dashboard />;
     }
